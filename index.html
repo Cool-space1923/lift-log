@@ -1,1 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lift Log">
+<title>Jason's Lift Log</title>
+<style>
+  :root{
+    --surface-1:#0f1115;
+    --surface-2:#181b21;
+    --surface-3:#20242c;
+    --text-primary:#f5f6f7;
+    --text-secondary:#a7adb8;
+    --text-muted:#6b7280;
+    --accent:#3987e5;
+    --good:#0ca30c;
+    --good-bg:#0ca30c22;
+    --warning:#fab219;
+    --warning-bg:#fab21922;
+    --critical:#d03b3b;
+    --critical-bg:#d03b3b22;
+    --border:#2a2f38;
+    --core-bg:#0ca30c1a;
+    --core-border:#0ca30c55;
+    --extra-bg:#fab2191a;
+    --extra-border:#fab21955;
+    --cardio-bg:#1baf7a1a;
+    --cardio-border:#1baf7a55;
+    --cardio:#1baf7a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; background:var(--surface-1); color:var(--text-primary);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,Arial,sans-serif;
+    height:100%; overscroll-behavior-y:none;
+  }
+  #app{max-width:560px; margin:0 auto; min-height:100vh; padding-bottom:90px;}
 
+  header.topbar{
+    position:sticky; top:0; z-index:20; background:rgba(15,17,21,0.92); backdrop-filter:blur(10px);
+    padding:calc(env(safe-area-inset-top) + 14px) 18px 12px; border-bottom:1px solid var(--border);
+  }
+  header.topbar h1{font-size:19px; margin:0; font-weight:700;}
+  header.topbar .sub{font-size:13px; color:var(--text-secondary); margin-top:2px;}
+
+  main{padding:14px 16px 8px;}
+
+  .card{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;}
+
+  .ex-block{border-radius:12px; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border);}
+  .ex-block.core{background:var(--core-bg); border-color:var(--core-border);}
+  .ex-block.extra{background:var(--extra-bg); border-color:var(--extra-border);}
+  .ex-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .ex-name{font-size:16px; font-weight:700;}
+  .ex-tag{font-size:10.5px; font-weight:800; letter-spacing:.05em; padding:2px 7px; border-radius:6px; white-space:nowrap;}
+  .ex-tag.core{background:var(--good); color:#04270a;}
+  .ex-tag.extra{background:var(--warning); color:#2b1c00;}
+  .ex-meta{font-size:13px; color:var(--text-secondary); margin-top:3px;}
+
+  .target-row{display:flex; align-items:center; gap:8px; margin-top:10px; padding:8px 10px; border-radius:9px; background:var(--surface-3);}
+  .target-icon{width:20px; height:20px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900;}
+  .target-icon.up{background:var(--good-bg); color:var(--good);}
+  .target-icon.same{background:var(--warning-bg); color:var(--warning);}
+  .target-icon.down{background:var(--critical-bg); color:var(--critical);}
+  .target-icon.new{background:var(--surface-3); color:var(--text-muted); border:1px solid var(--border);}
+  .target-text{font-size:13.5px;}
+  .target-text b{font-weight:800;}
+
+  .log-btn{
+    margin-top:10px; width:100%; padding:11px; border-radius:10px; border:none;
+    background:var(--accent); color:#fff; font-size:15px; font-weight:700;
+  }
+  .log-btn:active{opacity:0.75;}
+  .ex-block.done{opacity:0.55;}
+  .ex-block.done .log-btn{background:var(--surface-3); color:var(--text-secondary);}
+
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:30;
+    background:rgba(24,27,33,0.94); backdrop-filter:blur(12px);
+    border-top:1px solid var(--border);
+    display:flex; padding:6px 6px calc(env(safe-area-inset-bottom) + 6px);
+    max-width:560px; margin:0 auto;
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; color:var(--text-muted); font-size:11px; font-weight:600;
+    padding:8px 2px 4px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav.tabbar button.active{color:var(--accent);}
+  nav.tabbar .icon{font-size:20px;}
+
+  .section-title{font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:18px 4px 8px;}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; display:flex; align-items:flex-end;}
+  .modal-overlay.hidden{display:none;}
+  .modal{background:var(--surface-2); width:100%; max-width:560px; margin:0 auto; border-radius:20px 20px 0 0; padding:18px 18px calc(env(safe-area-inset-bottom) + 18px); max-height:88vh; overflow-y:auto;}
+  .modal h2{margin:0 0 2px; font-size:18px;}
+  .modal .modal-sub{font-size:13px; color:var(--text-secondary); margin-bottom:14px;}
+  .set-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .set-label{width:46px; font-size:13px; font-weight:700; color:var(--text-secondary);}
+  .set-input{flex:1; display:flex; align-items:center; background:var(--surface-3); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .set-input input{flex:1; min-width:0; background:none; border:none; color:var(--text-primary); font-size:17px; font-weight:700; text-align:center; padding:11px 4px;}
+  .set-input input::-webkit-outer-spin-button,.set-input input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .set-input .unit{font-size:11px; color:var(--text-muted); padding-right:10px; white-space:nowrap;}
+  .add-set-row button{width:100%; padding:9px; border-radius:9px; border:1px dashed var(--border); background:none; color:var(--text-secondary); font-size:13px; margin-bottom:12px;}
+
+  .felt-row{display:flex; gap:8px; margin:14px 0;}
+  .felt-btn{flex:1; padding:10px 4px; border-radius:10px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-secondary); font-size:13px; font-weight:700;}
+  .felt-btn.selected[data-felt="Easy"]{background:var(--good-bg); border-color:var(--good); color:var(--good);}
+  .felt-btn.selected[data-felt="OK"]{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .felt-btn.selected[data-felt="Hard"]{background:var(--warning-bg); border-color:var(--warning); color:var(--warning);}
+  .felt-btn.selected[data-felt="Failed"]{background:var(--critical-bg); border-color:var(--critical); color:var(--critical);}
+
+  .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  .modal-actions button{flex:1; padding:13px; border-radius:11px; border:none; font-size:15px; font-weight:800;}
+  .btn-cancel{background:var(--surface-3); color:var(--text-secondary);}
+  .btn-save{background:var(--accent); color:#fff;}
+
+  .prog-row{display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);}
+  .prog-row:last-child{border-bottom:none;}
+  .prog-name{font-size:14.5px; font-weight:700;}
+  .prog-detail{font-size:12px; color:var(--text-secondary); margin-top:2px;}
+  .prog-badge{font-size:12px; font-weight:800; padding:5px 10px; border-radius:8px; white-space:nowrap; display:flex; align-items:center; gap:5px;}
+  .prog-badge.up{background:var(--good-bg); color:var(--good);}
+  .prog-badge.same{background:var(--warning-bg); color:var(--warning);}
+  .prog-badge.down{background:var(--critical-bg); color:var(--critical);}
+  .prog-badge.new{background:var(--surface-3); color:var(--text-muted);}
+
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:6px;}
+  .stat-tile{background:var(--surface-3); border-radius:12px; padding:12px; text-align:center;}
+  .stat-tile .num{font-size:24px; font-weight:800;}
+  .stat-tile .lbl{font-size:11.5px; color:var(--text-secondary); margin-top:2px;}
+
+  .empty{text-align:center; color:var(--text-muted); font-size:13.5px; padding:30px 10px;}
+
+  input.bw-input{background:var(--surface-3); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; padding:9px; font-size:15px; width:100px; text-align:center;}
+  select.bw-input{background:var(--surface-3); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; padding:9px; font-size:15px;}
+
+  .history-item{padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .history-item:last-child{border-bottom:none;}
+  .history-item.skip{opacity:0.7;}
+  .history-date{color:var(--text-muted); font-size:11.5px;}
+  .history-sets{margin-top:3px;}
+  .history-felt{float:right; font-weight:700;}
+
+  .bw-history-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
+  .bw-history-row:last-child{border-bottom:none;}
+  .bw-history-row .d{color:var(--text-secondary);}
+  .bw-history-row .w{font-weight:700;}
+  .bw-delta{font-size:11.5px; margin-left:6px;}
+  .bw-delta.down{color:var(--good);}
+  .bw-delta.up{color:var(--critical);}
+
+  .run-week{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px;}
+  .run-week .wk{font-size:12px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:.04em;}
+  .run-week .struct{font-size:15px; font-weight:700; margin:4px 0 2px;}
+  .run-week .goal{font-size:13px; color:var(--text-secondary);}
+  .run-week .note{font-size:12px; color:var(--text-muted); margin-top:5px; font-style:italic;}
+  .run-week.current{border-color:var(--cardio); border-width:2px;}
+
+  .daynav{display:flex; gap:8px; padding:10px; flex-wrap:wrap;}
+  .daynav button{flex:1; min-width:70px; padding:9px; border-radius:9px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-secondary); font-weight:700; font-size:13px;}
+  .daynav button.active{background:var(--accent); color:#fff;}
+  .daynav button.cardio-btn.active{background:var(--cardio);}
+
+  .skip-btn{width:100%; padding:11px; border-radius:10px; border:1px dashed var(--border); background:none; color:var(--text-muted); font-size:13.5px; font-weight:600; margin-bottom:14px;}
+
+  .mode-toggle{display:flex; gap:8px; padding:4px; background:var(--surface-3); border-radius:12px; margin-bottom:14px;}
+  .mode-toggle button{flex:1; padding:11px; border-radius:9px; border:none; background:none; color:var(--text-secondary); font-weight:700; font-size:14px;}
+  .mode-toggle button.active{background:var(--accent); color:#fff;}
+  .mode-toggle button.active.cardio-active{background:var(--cardio);}
+
+  .scheme-banner{display:flex; align-items:center; gap:10px; background:var(--surface-3); border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; color:var(--text-secondary);}
+  .scheme-banner b{color:var(--text-primary);}
+
+  .cardio-stat-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
+  .cardio-stat-row:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <h1 id="headerTitle">Today's Workout</h1>
+    <div class="sub" id="headerSub">Loading...</div>
+  </header>
+  <main id="mainContent"></main>
+</div>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-tab="today"><span class="icon">🏋️</span>Today</button>
+  <button class="tab-btn" data-tab="progress"><span class="icon">📈</span>Progress</button>
+  <button class="tab-btn" data-tab="running"><span class="icon">🏃</span>Running</button>
+  <button class="tab-btn" data-tab="history"><span class="icon">📋</span>History</button>
+</nav>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+// ============ DATA MODEL ============
+const STORAGE_KEY = 'liftlog_v3';
+
+// 3 lifting templates (fits ~60 min after work) covering all 8 named core lifts across them,
+// plus a separate cardio-only "day" that isn't part of the same rotation counter (Jason chooses
+// freely whether today is a lifting day or a cardio day). Rep/rest scheme rotates on a 3-session
+// cycle per REP_SCHEMES below to keep training varied instead of static month to month.
+const TEMPLATES = [
+  {
+    key:"day1", title:"Lower + Push", sub:"Squat, Bench, Shoulders/Triceps",
+    exercises: [
+      {id:"d1-1", block:"CORE",
+        default:{name:"Barbell Back Squat", incr:10},
+        alternates:[{name:"Leg Press (Squat Sub)", incr:10}, {name:"Goblet Squat", incr:5}]},
+      {id:"d1-2", block:"CORE",
+        default:{name:"Bench Press", incr:5},
+        alternates:[{name:"Machine Chest Press", incr:5}]},
+      {id:"d1-3", block:"EXTRA",
+        default:{name:"Lateral Raise", incr:2.5},
+        alternates:[{name:"Cable Lateral Raise", incr:5}]},
+      {id:"d1-4", block:"EXTRA",
+        default:{name:"Triceps Extension Machine", incr:5},
+        alternates:[{name:"Triceps Dips (Bodyweight)", incr:0, bodyweight:true}, {name:"Overhead DB Triceps Extension", incr:5}]},
+    ]
+  },
+  {
+    key:"day2", title:"Pull + Arms", sub:"Deadlift, Back, Arms",
+    exercises: [
+      {id:"d2-1", block:"CORE",
+        default:{name:"Deadlift", incr:10},
+        alternates:[{name:"Trap Bar Deadlift", incr:10}]},
+      {id:"d2-2", block:"CORE",
+        default:{name:"Lat Pulldown", incr:5},
+        alternates:[{name:"Pull-up (Bodyweight)", incr:0, bodyweight:true}]},
+      {id:"d2-3", block:"CORE",
+        default:{name:"DB Row", incr:5},
+        alternates:[{name:"Seated Cable Row", incr:5}, {name:"Barbell Row", incr:5}]},
+      {id:"d2-4", block:"EXTRA",
+        default:{name:"DB Biceps Curl", incr:5},
+        alternates:[{name:"Cable Curl", incr:5}, {name:"Barbell Curl", incr:5}]},
+      {id:"d2-5", block:"EXTRA",
+        default:{name:"Hammer Curl", incr:5},
+        alternates:[{name:"Rope Hammer Curl", incr:5}]},
+    ]
+  },
+  {
+    key:"day3", title:"Legs + Shoulders", sub:"RDL, Leg Press, Shoulder Press",
+    exercises: [
+      {id:"d3-1", block:"CORE",
+        default:{name:"Romanian Deadlift", incr:10},
+        alternates:[{name:"Seated Leg Curl Machine", incr:5}]},
+      {id:"d3-2", block:"CORE",
+        default:{name:"Leg Press", incr:10},
+        alternates:[{name:"Front Squat", incr:5}, {name:"Hack Squat", incr:10}]},
+      {id:"d3-3", block:"CORE",
+        default:{name:"DB Shoulder Press", incr:5},
+        alternates:[{name:"Machine Shoulder Press", incr:5}]},
+      {id:"d3-4", block:"EXTRA",
+        default:{name:"Wide-Grip Cable Row (Back Width)", incr:5},
+        alternates:[{name:"Straight-Arm Pulldown", incr:5}]},
+      {id:"d3-5", block:"EXTRA",
+        default:{name:"Rear Delt Fly", incr:2.5},
+        alternates:[{name:"Face Pull", incr:5}]},
+    ]
+  }
+];
+
+// Rep/rest scheme rotates every 3rd LIFTING session (not calendar week), keyed off
+// DATA.liftingCompletedCount. Scheme A = moderate, B = high-rep/pump, C = heavier/lower-rep.
+const REP_SCHEMES = [
+  {key:'A', label:'Moderate', coreReps:'8-12', coreRest:'90 sec', extraReps:'12-15', extraRest:'45 sec', note:'Balanced week — moderate weight, moderate reps.'},
+  {key:'B', label:'High-Rep / Pump', coreReps:'15-20', coreRest:'45 sec', extraReps:'18-22', extraRest:'30 sec', note:'Lighter weight, higher reps, short rest — more burn, more conditioning, keeps things fresh.'},
+  {key:'C', label:'Heavier / Lower-Rep', coreReps:'6-8', coreRest:'2 min', extraReps:'10-12', extraRest:'60 sec', note:'Heavier loads on Core this cycle — focus on strength while still keeping accessories moderate-rep.'},
+];
+function schemeForLiftingSessionIndex(n){
+  // n = which lifting session this is about to be (1-indexed). Cycles A,B,C,A,B,C...
+  return REP_SCHEMES[(n-1) % REP_SCHEMES.length];
+}
+
+const RUNNING_PLAN = [
+  {week:1, structure:"Run 2 min / Walk 2 min × 6 rounds", goal:"Build aerobic base", note:"Easy conversational pace", targetMiles:1.0},
+  {week:2, structure:"Run 2 min / Walk 2 min × 6 rounds", goal:"Build aerobic base", note:"Same as week 1 — repeat until comfortable", targetMiles:1.0},
+  {week:3, structure:"Run 4 min / Walk 2 min × 5 rounds", goal:"Extend continuous running", note:"Repeat week 1-2 if too hard", targetMiles:1.3},
+  {week:4, structure:"Run 6 min / Walk 2 min × 4 rounds", goal:"~1.5-2 miles total", note:"Challenging but not maxed out", targetMiles:1.6},
+  {week:5, structure:"Run 8 min / Walk 2 min × 3 rounds", goal:"Push continuous running time", note:"Focus on steady breathing", targetMiles:1.8},
+  {week:6, structure:"Run 10 min / Walk 1 min ×2, then run 5 min", goal:"~2-2.25 miles", note:"Getting close to continuous 2 miles", targetMiles:2.1},
+  {week:7, structure:"Run 15 min / Walk 2 min / Run 10 min", goal:"~2.25-2.5 miles", note:"First week of longer uninterrupted stretches", targetMiles:2.3},
+  {week:8, structure:"Run 20 min continuous, easy pace", goal:"~2-2.25 miles nonstop", note:"Slow pace if needed to finish without walking", targetMiles:2.2},
+  {week:9, structure:"Run 25-30 min continuous, easy pace", goal:"3 miles comfortably", note:"Goal session — don't chase speed yet", targetMiles:3.0},
+  {week:10, structure:"Maintain 2-3×/week at 3 miles, add 1 faster session if desired", goal:"Maintain + optional speed work", note:"Once 3 miles is easy, start adding pace goals", targetMiles:3.0},
+];
+
+function slotVariants(ex){ return [ex.default, ...ex.alternates]; }
+function currentVariant(ex){
+  const chosenName = DATA.exerciseChoice[ex.id];
+  if(chosenName){
+    const found = slotVariants(ex).find(v=>v.name===chosenName);
+    if(found) return found;
+  }
+  return ex.default;
+}
+
+// ============ STORAGE ============
+function defaultData(){
+  return {
+    logs: [],                 // {date, dayNumber, templateKey, schemeKey, exercise, block, slotId, sets:[{weight,reps,felt}]}
+    skips: [],                 // {date, kind:'lift'|'cardio'}
+    bodyweight: [],             // {date, weight}
+    cardioLogs: [],             // {date, miles, minutes, week (running-plan week at time of log)}
+    liftingCompletedCount: 0,   // rolling count of completed LIFTING days only (drives both day-template rotation and rep-scheme rotation)
+    settings: {startWeight:220, goalWeight:200},
+    exerciseChoice: {}
+  };
+}
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      const d = defaultData();
+      return Object.assign(d, parsed, {
+        settings: Object.assign(d.settings, parsed.settings||{}),
+        exerciseChoice: parsed.exerciseChoice || {}
+      });
+    }
+  }catch(e){}
+  return defaultData();
+}
+function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); }
+let DATA = loadData();
+
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function fmtDate(iso){
+  const d = new Date(iso+"T00:00:00");
+  return d.toLocaleDateString('en-US',{month:'short', day:'numeric'});
+}
+
+// ============ LIFTING DAY LOGIC ============
+function nextLiftingDayNumber(){ return DATA.liftingCompletedCount + 1; }
+function templateForDayNumber(n){ return TEMPLATES[(n-1) % TEMPLATES.length]; }
+function schemeForDayNumber(n){ return schemeForLiftingSessionIndex(n); }
+
+let currentDayNumberOverride = null;
+function activeDayNumber(){ return currentDayNumberOverride || nextLiftingDayNumber(); }
+
+// ============ RUNNING PLAN LOGIC ============
+// Current running week = based on how many cardio sessions have been logged so far (1-indexed),
+// capped at the plan's max week. Simple and predictable: session 1 = week 1 plan, session 5 = week 5, etc.
+function currentRunningWeekIndex(){
+  const n = DATA.cardioLogs.length + 1;
+  return Math.min(n, RUNNING_PLAN.length);
+}
+function runningPlanForWeek(w){ return RUNNING_PLAN.find(r=>r.week===w) || RUNNING_PLAN[RUNNING_PLAN.length-1]; }
+
+// ============ PROGRESSION LOGIC ============
+function getRecommendation(exerciseName, incr){
+  const entries = DATA.logs.filter(l=>l.exercise===exerciseName).sort((a,b)=> a.date<b.date?1:-1);
+  if(entries.length===0) return {status:'new'};
+  const last = entries[0];
+  const lastMaxWeight = Math.max(...last.sets.map(s=>s.weight||0));
+  const lastFelt = worstFelt(last.sets);
+  const prior = entries[1];
+  const priorMaxWeight = prior ? Math.max(...prior.sets.map(s=>s.weight||0)) : null;
+
+  let status;
+  if(lastFelt === "Failed"){
+    status = "down";
+  } else if(lastFelt === "Easy" || lastFelt === "OK"){
+    if(priorMaxWeight!==null && lastMaxWeight >= priorMaxWeight) status = "up";
+    else status = "same";
+  } else {
+    status = "same";
+  }
+
+  let targetWeight;
+  if(status==="up") targetWeight = lastMaxWeight + incr;
+  else if(status==="down") targetWeight = roundTo5(lastMaxWeight*0.9);
+  else targetWeight = lastMaxWeight;
+
+  return {status, lastWeight:lastMaxWeight, targetWeight, lastFelt, lastDate:last.date};
+}
+function worstFelt(sets){
+  const order = ["Failed","Hard","OK","Easy"];
+  let worst = null;
+  for(const s of sets){
+    if(!s.felt) continue;
+    if(worst===null || order.indexOf(s.felt) < order.indexOf(worst)) worst = s.felt;
+  }
+  return worst;
+}
+function roundTo5(n){ return Math.round(n/5)*5; }
+
+// ============ RENDERING ============
+let currentTab = 'today';
+let todayMode = 'lift'; // 'lift' | 'cardio' — which mode Today view is showing
+
+function render(){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===currentTab));
+  const main = document.getElementById('mainContent');
+  const title = document.getElementById('headerTitle');
+  const sub = document.getElementById('headerSub');
+
+  if(currentTab==='today') renderToday(main, title, sub);
+  else if(currentTab==='progress') renderProgress(main, title, sub);
+  else if(currentTab==='running') renderRunning(main, title, sub);
+  else if(currentTab==='history') renderHistory(main, title, sub);
+}
+
+function renderToday(main, title, sub){
+  let html = `<div class="mode-toggle">
+    <button data-modebtn="lift" class="${todayMode==='lift'?'active':''}">🏋️ Lifting</button>
+    <button data-modebtn="cardio" class="${todayMode==='cardio'?'active cardio-active':''}">🏃 Cardio</button>
+  </div>`;
+
+  if(todayMode==='lift'){
+    html += renderLiftMode(title, sub);
+  } else {
+    html += renderCardioMode(title, sub);
+  }
+
+  main.innerHTML = html;
+  wireModeToggle();
+  if(todayMode==='lift') wireLiftMode();
+  else wireCardioMode();
+}
+
+function wireModeToggle(){
+  document.querySelectorAll('[data-modebtn]').forEach(b=>{
+    b.onclick = ()=>{ todayMode = b.dataset.modebtn; render(); };
+  });
+}
+
+// ---------- LIFT MODE ----------
+function renderLiftMode(title, sub){
+  const dayNumber = activeDayNumber();
+  const template = templateForDayNumber(dayNumber);
+  const scheme = schemeForDayNumber(dayNumber);
+  title.textContent = `Day ${dayNumber}: ${template.title}`;
+  sub.textContent = template.sub;
+
+  const todayDate = todayISO();
+  const loggedTodayNames = new Set(DATA.logs.filter(l=>l.date===todayDate && l.dayNumber===dayNumber).map(l=>l.exercise));
+  const alreadySkippedToday = DATA.skips.some(s=>s.date===todayDate && s.kind==='lift');
+
+  let html = `<div class="scheme-banner">🔄 <span><b>${scheme.label}</b> week (Core ${scheme.coreReps} reps / ${scheme.coreRest} rest, Extra ${scheme.extraReps} / ${scheme.extraRest}). ${scheme.note}</span></div>`;
+
+  html += `<div class="section-title">Jump to a lifting day</div><div class="card daynav" id="dayNavCard"></div>`;
+
+  html += `<button class="skip-btn" id="skipLiftBtn">${alreadySkippedToday ? '✓ Marked today as a lifting skip / rest day' : 'Mark today as skipped / rest day (lifting)'}</button>`;
+
+  html += `<div class="section-title">Core (do these no matter what)</div>`;
+  template.exercises.filter(e=>e.block==="CORE").forEach(ex=> html += renderExerciseCard(ex, dayNumber, loggedTodayNames, scheme, 'CORE'));
+
+  html += `<div class="section-title">Extra (bonus if time allows)</div>`;
+  template.exercises.filter(e=>e.block==="EXTRA").forEach(ex=> html += renderExerciseCard(ex, dayNumber, loggedTodayNames, scheme, 'EXTRA'));
+
+  const isNextDue = (dayNumber === nextLiftingDayNumber());
+  const loggedAnyForThisDay = DATA.logs.some(l=>l.dayNumber===dayNumber);
+  if(isNextDue){
+    const nextTemplate = templateForDayNumber(dayNumber+1);
+    html += `<button id="finishDayBtn" style="width:100%; padding:14px; border-radius:12px; border:none; background:${loggedAnyForThisDay?'var(--good)':'var(--surface-3)'}; color:${loggedAnyForThisDay?'#04270a':'var(--text-muted)'}; font-weight:800; font-size:15px; margin-top:6px;" ${loggedAnyForThisDay?'':'disabled'}>
+      ✓ Finish Day ${dayNumber} → Start Day ${dayNumber+1} (${nextTemplate.title})
+    </button>`;
+    if(!loggedAnyForThisDay){
+      html += `<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:6px;">Log at least one exercise before finishing the day</div>`;
+    }
+  } else {
+    html += `<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:6px; padding:10px;">You're viewing Day ${dayNumber} — the "Finish Day" button only appears on your current due day (Day ${nextLiftingDayNumber()}).</div>`;
+  }
+
+  return html;
+}
+
+function wireLiftMode(){
+  const dayNumber = activeDayNumber();
+  const template = templateForDayNumber(dayNumber);
+  const todayDate = todayISO();
+  const alreadySkippedToday = DATA.skips.some(s=>s.date===todayDate && s.kind==='lift');
+  const loggedAnyForThisDay = DATA.logs.some(l=>l.dayNumber===dayNumber);
+
+  const navCard = document.getElementById('dayNavCard');
+  const upcoming = nextLiftingDayNumber();
+  const options = [];
+  if(upcoming>1) options.push(upcoming-1);
+  options.push(upcoming, upcoming+1, upcoming+2);
+  navCard.innerHTML = options.map(n=>{
+    const active = n===dayNumber;
+    return `<button data-jumpday="${n}" class="${active?'active':''}">Day ${n}</button>`;
+  }).join('');
+  navCard.querySelectorAll('[data-jumpday]').forEach(b=>{
+    b.onclick = ()=>{ currentDayNumberOverride = parseInt(b.dataset.jumpday,10); render(); };
+  });
+
+  document.getElementById('skipLiftBtn').onclick = ()=>{
+    if(alreadySkippedToday) return;
+    DATA.skips.push({date: todayDate, kind:'lift'});
+    saveData();
+    render();
+  };
+  const finishBtn = document.getElementById('finishDayBtn');
+  if(finishBtn){
+    finishBtn.onclick = ()=>{
+      if(!loggedAnyForThisDay) return;
+      DATA.liftingCompletedCount += 1;
+      currentDayNumberOverride = null;
+      saveData();
+      render();
+    };
+  }
+  document.querySelectorAll('[data-logbtn]').forEach(b=>{
+    b.onclick = ()=> openLogModal(b.dataset.slotid, dayNumber, template.key);
+  });
+  document.querySelectorAll('[data-swapselect]').forEach(sel=>{
+    sel.onchange = ()=>{
+      DATA.exerciseChoice[sel.dataset.slotid] = sel.value;
+      saveData();
+      render();
+    };
+  });
+}
+
+function renderExerciseCard(ex, dayNumber, loggedTodayNames, scheme, block){
+  const variant = currentVariant(ex);
+  const isBodyweight = !!variant.bodyweight;
+  const rec = (variant.incr>0 && !isBodyweight) ? getRecommendation(variant.name, variant.incr) : {status:'new'};
+  const isLogged = loggedTodayNames.has(variant.name);
+  const reps = block==='CORE' ? scheme.coreReps : scheme.extraReps;
+  const rest = block==='CORE' ? scheme.coreRest : scheme.extraRest;
+  const sets = block==='CORE' ? 3 : 3;
+
+  let targetHTML = '';
+  if(isBodyweight){
+    targetHTML = `<div class="target-row"><div class="target-icon new">★</div><div class="target-text">Bodyweight exercise — aim for target reps/hold time</div></div>`;
+  } else if(rec.status==='new'){
+    targetHTML = `<div class="target-row"><div class="target-icon new">★</div><div class="target-text">No history yet for this exercise — pick a weight that's a solid, completable effort for ${sets}×${reps}</div></div>`;
+  } else {
+    const iconMap = {up:'▲', same:'=', down:'▼'};
+    const textMap = {
+      up: `Nice work! Last time was <b>${rec.lastWeight} lbs</b> and felt ${rec.lastFelt}. Try <b>${rec.targetWeight} lbs</b> today.`,
+      same: `Last time: <b>${rec.lastWeight} lbs</b> (${rec.lastFelt}). Repeat <b>${rec.targetWeight} lbs</b> today.`,
+      down: `Last session was tough (${rec.lastFelt}) at ${rec.lastWeight} lbs. Drop to <b>${rec.targetWeight} lbs</b> and rebuild.`
+    };
+    targetHTML = `<div class="target-row"><div class="target-icon ${rec.status}">${iconMap[rec.status]}</div><div class="target-text">${textMap[rec.status]}</div></div>`;
+  }
+
+  const variants = slotVariants(ex);
+  let swapHTML = '';
+  if(variants.length>1){
+    const options = variants.map(v=>`<option value="${escAttr(v.name)}" ${v.name===variant.name?'selected':''}>${v.name}</option>`).join('');
+    swapHTML = `<select class="bw-input" style="width:100%; margin-top:8px; text-align:left;" data-swapselect data-slotid="${ex.id}">${options}</select>`;
+  }
+
+  return `
+  <div class="ex-block ${ex.block.toLowerCase()} ${isLogged?'done':''}">
+    <div class="ex-head">
+      <div class="ex-name">${variant.name}</div>
+      <div class="ex-tag ${ex.block.toLowerCase()}">${ex.block}</div>
+    </div>
+    <div class="ex-meta">${sets} sets × ${reps} reps · rest ${rest}</div>
+    ${swapHTML}
+    ${targetHTML}
+    <button class="log-btn" data-logbtn data-slotid="${ex.id}">${isLogged ? '✓ Logged — tap to edit' : 'Log this exercise'}</button>
+  </div>`;
+}
+
+function escAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+// ---------- CARDIO MODE ----------
+function renderCardioMode(title, sub){
+  title.textContent = "Cardio Day";
+  sub.textContent = "Building toward 3 miles comfortably";
+
+  const weekIdx = currentRunningWeekIndex();
+  const plan = runningPlanForWeek(weekIdx);
+  const todayDate = todayISO();
+  const alreadySkippedToday = DATA.skips.some(s=>s.date===todayDate && s.kind==='cardio');
+  const loggedToday = DATA.cardioLogs.find(c=>c.date===todayDate);
+
+  let html = `<div class="card run-week current">
+    <div class="wk">Week ${plan.week} of your running plan</div>
+    <div class="struct">${plan.structure}</div>
+    <div class="goal">${plan.goal}</div>
+    <div class="note">${plan.note}</div>
+  </div>`;
+
+  html += `<button class="skip-btn" id="skipCardioBtn">${alreadySkippedToday ? '✓ Marked today as a cardio skip / rest day' : 'Mark today as skipped / rest day (cardio)'}</button>`;
+
+  html += `<div class="section-title">Log today's run</div><div class="card">`;
+  if(loggedToday){
+    html += `<div style="margin-bottom:10px; font-size:13.5px; color:var(--text-secondary);">Already logged today: <b>${loggedToday.miles} mi</b> in <b>${loggedToday.minutes} min</b>. Edit below if needed.</div>`;
+  }
+  html += `<div style="display:flex; gap:8px; margin-bottom:10px;">
+    <div style="flex:1;">
+      <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:4px;">Distance (miles)</div>
+      <input type="number" step="0.01" inputmode="decimal" id="cardioMiles" class="bw-input" style="width:100%;" value="${loggedToday ? loggedToday.miles : ''}" placeholder="e.g. 1.5">
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:4px;">Duration (minutes)</div>
+      <input type="number" step="1" inputmode="numeric" id="cardioMinutes" class="bw-input" style="width:100%;" value="${loggedToday ? loggedToday.minutes : ''}" placeholder="e.g. 18">
+    </div>
+  </div>
+  <button id="saveCardioBtn" style="width:100%; padding:12px; border-radius:10px; border:none; background:var(--cardio); color:#04231a; font-weight:800; font-size:15px;">${loggedToday ? 'Update This Run' : 'Save This Run'}</button>
+  </div>`;
+
+  const cardioSorted = DATA.cardioLogs.slice().sort((a,b)=> a.date<b.date?1:-1);
+  html += `<div class="section-title">Recent runs</div><div class="card">`;
+  if(cardioSorted.length===0){
+    html += `<div class="empty">No runs logged yet — this is your Week 1 session.</div>`;
+  } else {
+    cardioSorted.slice(0,6).forEach(c=>{
+      html += `<div class="cardio-stat-row"><span>${fmtDate(c.date)}</span><span><b>${c.miles} mi</b> · ${c.minutes} min</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  return html;
+}
+
+function wireCardioMode(){
+  const todayDate = todayISO();
+  const alreadySkippedToday = DATA.skips.some(s=>s.date===todayDate && s.kind==='cardio');
+  document.getElementById('skipCardioBtn').onclick = ()=>{
+    if(alreadySkippedToday) return;
+    DATA.skips.push({date: todayDate, kind:'cardio'});
+    saveData();
+    render();
+  };
+  document.getElementById('saveCardioBtn').onclick = ()=>{
+    const miles = parseFloat(document.getElementById('cardioMiles').value);
+    const minutes = parseFloat(document.getElementById('cardioMinutes').value);
+    if(!miles || miles<=0 || !minutes || minutes<=0) return;
+    const weekIdx = currentRunningWeekIndex();
+    DATA.cardioLogs = DATA.cardioLogs.filter(c=>c.date!==todayDate);
+    DATA.cardioLogs.push({date: todayDate, miles, minutes, week: weekIdx});
+    saveData();
+    render();
+  };
+}
+
+// ============ LOG MODAL (lifting exercises) ============
+let modalSets = [];
+let modalFelt = null;
+let modalSlot = null;
+let modalVariant = null;
+let modalDayNumber = null;
+let modalTemplateKey = null;
+let modalScheme = null;
+
+function findSlot(slotId){
+  for(const t of TEMPLATES){
+    const found = t.exercises.find(e=>e.id===slotId);
+    if(found) return found;
+  }
+  return null;
+}
+
+function openLogModal(slotId, dayNumber, templateKey){
+  modalSlot = findSlot(slotId);
+  modalVariant = currentVariant(modalSlot);
+  modalDayNumber = dayNumber;
+  modalTemplateKey = templateKey;
+  modalScheme = schemeForDayNumber(dayNumber);
+  const todayDate = todayISO();
+  const existing = DATA.logs.find(l=>l.exercise===modalVariant.name && l.date===todayDate && l.dayNumber===dayNumber);
+  const targetSets = 3;
+  if(existing){
+    modalSets = existing.sets.map(s=>({...s}));
+    modalFelt = worstFelt(existing.sets);
+  } else {
+    const rec = (modalVariant.incr>0 && !modalVariant.bodyweight) ? getRecommendation(modalVariant.name, modalVariant.incr) : null;
+    const suggested = rec && rec.status!=='new' ? rec.targetWeight : '';
+    modalSets = Array.from({length: targetSets}, ()=>({weight: suggested, reps:'', felt:null}));
+    modalFelt = null;
+  }
+  renderModal();
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function renderModal(){
+  const m = document.getElementById('modalContent');
+  const reps = modalSlot.block==='CORE' ? modalScheme.coreReps : modalScheme.extraReps;
+  let setsHTML = '';
+  modalSets.forEach((s,i)=>{
+    setsHTML += `
+    <div class="set-row">
+      <div class="set-label">Set ${i+1}</div>
+      <div class="set-input">
+        <input type="number" inputmode="decimal" placeholder="wt" value="${s.weight}" data-setfield="weight" data-setidx="${i}">
+        <span class="unit">lbs</span>
+      </div>
+      <div class="set-input">
+        <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" data-setfield="reps" data-setidx="${i}">
+        <span class="unit">reps</span>
+      </div>
+      ${modalSets.length>1 ? `<button data-removeset="${i}" style="background:none;border:none;color:var(--text-muted);font-size:20px;padding:4px 6px;">&times;</button>` : ''}
+    </div>`;
+  });
+
+  const feltOptions = ["Easy","OK","Hard","Failed"];
+  let feltHTML = '<div class="felt-row">';
+  feltOptions.forEach(f=>{
+    feltHTML += `<button class="felt-btn ${modalFelt===f?'selected':''}" data-felt="${f}">${f}</button>`;
+  });
+  feltHTML += '</div>';
+
+  m.innerHTML = `
+    <h2>${modalVariant.name}</h2>
+    <div class="modal-sub">Day ${modalDayNumber} · target ${reps} reps (${modalScheme.label} week)</div>
+    ${setsHTML}
+    <div class="add-set-row"><button id="addSetBtn">+ Add set</button></div>
+    <div class="section-title" style="margin:4px 4px 6px;">How did it feel?</div>
+    ${feltHTML}
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancelBtn">Cancel</button>
+      <button class="btn-save" id="saveBtn">Save</button>
+    </div>
+  `;
+
+  m.querySelectorAll('[data-setfield]').forEach(inp=>{
+    inp.oninput = ()=>{
+      const idx = +inp.dataset.setidx;
+      const field = inp.dataset.setfield;
+      modalSets[idx][field] = inp.value === '' ? '' : parseFloat(inp.value);
+    };
+  });
+  m.querySelectorAll('[data-removeset]').forEach(btn=>{
+    btn.onclick = ()=>{ modalSets.splice(+btn.dataset.removeset,1); renderModal(); };
+  });
+  document.getElementById('addSetBtn').onclick = ()=>{
+    modalSets.push({weight:'', reps:'', felt:null}); renderModal();
+  };
+  m.querySelectorAll('[data-felt]').forEach(btn=>{
+    btn.onclick = ()=>{ modalFelt = btn.dataset.felt; renderModal(); };
+  });
+  document.getElementById('cancelBtn').onclick = closeModal;
+  document.getElementById('saveBtn').onclick = saveLog;
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+function saveLog(){
+  const todayDate = todayISO();
+  const validSets = modalSets.filter(s=> s.weight!=='' || s.reps!=='').map(s=>({
+    weight: s.weight===''?0:s.weight, reps: s.reps===''?0:s.reps, felt: modalFelt
+  }));
+  if(validSets.length===0){ closeModal(); return; }
+
+  DATA.logs = DATA.logs.filter(l=> !(l.exercise===modalVariant.name && l.date===todayDate && l.dayNumber===modalDayNumber));
+  DATA.logs.push({ date: todayDate, dayNumber: modalDayNumber, templateKey: modalTemplateKey, schemeKey: modalScheme.key, exercise: modalVariant.name, block: modalSlot.block, slotId: modalSlot.id, sets: validSets });
+
+  saveData();
+  closeModal();
+  render();
+}
+
+// ============ PROGRESS TAB ============
+function renderProgress(main, title, sub){
+  title.textContent = "Progress";
+  sub.textContent = "Auto-calculated from your logged workouts";
+
+  const bwSorted = DATA.bodyweight.slice().sort((a,b)=> a.date<b.date?1:-1);
+  const recentWeight = bwSorted.length ? bwSorted[0].weight : DATA.settings.startWeight;
+  const startWeight = DATA.settings.startWeight;
+  const goalWeight = DATA.settings.goalWeight;
+  const pctProgress = startWeight!==goalWeight ? Math.round(((startWeight-recentWeight)/(startWeight-goalWeight))*100) : 0;
+  const lbsLost = (startWeight - recentWeight).toFixed(1);
+
+  let html = `
+  <div class="section-title">Bodyweight</div>
+  <div class="card">
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="num">${recentWeight}</div><div class="lbl">Latest (lbs)</div></div>
+      <div class="stat-tile"><div class="num">${lbsLost}</div><div class="lbl">Lbs lost so far</div></div>
+      <div class="stat-tile"><div class="num">${goalWeight}</div><div class="lbl">Goal (lbs)</div></div>
+      <div class="stat-tile"><div class="num">${isFinite(pctProgress)?pctProgress:0}%</div><div class="lbl">Progress to goal</div></div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:12px;">
+      <input type="date" id="newBwDate" class="bw-input" style="width:auto; flex:1;" value="${todayISO()}">
+      <input type="number" id="newBwInput" placeholder="Weight" class="bw-input" style="flex:1; width:auto;">
+      <button id="logBwBtn" style="padding:10px 16px; border-radius:9px; border:none; background:var(--accent); color:#fff; font-weight:700; font-size:14px;">Save</button>
+    </div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-top:8px;">Log any day — each date keeps its own entry. Re-saving the same date updates that day's entry.</div>
+  </div>`;
+
+  html += `<div class="section-title">Bodyweight History</div><div class="card" id="bwHistoryCard">`;
+  if(bwSorted.length===0){
+    html += `<div class="empty">No weigh-ins logged yet.</div>`;
+  } else {
+    bwSorted.forEach((entry, i)=>{
+      const prev = bwSorted[i+1];
+      let deltaHTML = '';
+      if(prev){
+        const diff = (entry.weight - prev.weight);
+        if(Math.abs(diff)>=0.05){
+          const cls = diff<0 ? 'down' : 'up';
+          const sign = diff>0?'+':'';
+          deltaHTML = `<span class="bw-delta ${cls}">${sign}${diff.toFixed(1)}</span>`;
+        }
+      }
+      html += `<div class="bw-history-row"><span class="d">${fmtDate(entry.date)}</span><span class="w">${entry.weight} lbs${deltaHTML}</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<div class="section-title">Core Lift Targets</div><div class="card">`;
+  const coreSlots = [];
+  TEMPLATES.forEach(t=> t.exercises.filter(e=>e.block==="CORE").forEach(e=> coreSlots.push(e)));
+  coreSlots.forEach(slot=>{
+    const variant = currentVariant(slot);
+    const isAlt = variant.name !== slot.default.name;
+    const rec = (variant.incr>0 && !variant.bodyweight) ? getRecommendation(variant.name, variant.incr) : {status:'new'};
+    let badge, detail;
+    if(variant.bodyweight){
+      badge = `<div class="prog-badge new">Bodyweight</div>`;
+      detail = `Tracked by reps, not weight`;
+    } else if(rec.status==='new'){
+      badge = `<div class="prog-badge new">No data</div>`;
+      detail = `Not logged yet`;
+    } else {
+      const labelMap = {up:'▲ UP', same:'= SAME', down:'▼ DOWN'};
+      badge = `<div class="prog-badge ${rec.status}">${labelMap[rec.status]}</div>`;
+      detail = `Last: ${rec.lastWeight} lbs (${rec.lastFelt}) on ${fmtDate(rec.lastDate)} → next: ${rec.targetWeight} lbs`;
+    }
+    const nameLabel = variant.name + (isAlt ? ` <span style="font-weight:400;color:var(--text-muted);">(swapped from ${slot.default.name})</span>` : '');
+    html += `<div class="prog-row"><div><div class="prog-name">${nameLabel}</div><div class="prog-detail">${detail}</div></div>${badge}</div>`;
+  });
+  html += `</div>`;
+
+  const weekIdx = currentRunningWeekIndex();
+  const totalMiles = DATA.cardioLogs.reduce((sum,c)=>sum+c.miles,0);
+  html += `<div class="section-title">Running Progress</div><div class="card">
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="num">${DATA.cardioLogs.length}</div><div class="lbl">Runs logged</div></div>
+      <div class="stat-tile"><div class="num">${totalMiles.toFixed(1)}</div><div class="lbl">Total miles</div></div>
+    </div>
+    <div style="font-size:12.5px; color:var(--text-secondary); margin-top:8px;">Currently on Week ${weekIdx} of the 3-mile progression plan.</div>
+  </div>`;
+
+  html += `<div class="card" style="display:flex; flex-direction:column; gap:8px;">
+    <div style="font-weight:700; font-size:14.5px;">Send an update to Claude</div>
+    <div style="font-size:12.5px; color:var(--text-secondary);">Build a summary of your recent lifts, bodyweight, and running progress to paste into your monthly check-in chat.</div>
+    <button id="exportBtn" style="padding:12px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-weight:700; font-size:14.5px;">Share / Copy Summary</button>
+    <div id="exportStatus" style="font-size:12px; color:var(--text-muted); display:none;"></div>
+  </div>`;
+
+  main.innerHTML = html;
+  document.getElementById('logBwBtn').onclick = ()=>{
+    const val = parseFloat(document.getElementById('newBwInput').value);
+    const dateVal = document.getElementById('newBwDate').value || todayISO();
+    if(!val || val<=0) return;
+    DATA.bodyweight = DATA.bodyweight.filter(b=>b.date!==dateVal);
+    DATA.bodyweight.push({date: dateVal, weight: val});
+    saveData();
+    render();
+  };
+  document.getElementById('exportBtn').onclick = handleExport;
+}
+
+// ============ EXPORT / SHARE SUMMARY ============
+function buildExportSummary(){
+  const lines = [];
+  lines.push(`Lift Log summary — ${new Date().toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'})}`);
+  lines.push('');
+
+  const bw = DATA.bodyweight.slice().sort((a,b)=> a.date<b.date?1:-1);
+  const recentWeight = bw.length ? bw[0].weight : DATA.settings.startWeight;
+  const startWeight = DATA.settings.startWeight;
+  const goalWeight = DATA.settings.goalWeight;
+  const lbsLost = (startWeight - recentWeight).toFixed(1);
+  lines.push(`BODYWEIGHT: ${recentWeight} lbs (started ${startWeight}, goal ${goalWeight}) — ${lbsLost} lbs lost so far, ${bw.length} weigh-ins logged`);
+  lines.push('');
+
+  const liftSkips = DATA.skips.filter(s=>s.kind==='lift').length;
+  const cardioSkips = DATA.skips.filter(s=>s.kind==='cardio').length;
+  lines.push(`LIFTING: ${DATA.liftingCompletedCount} completed lifting days, ${liftSkips} lifting rest/skip days marked`);
+  lines.push('');
+
+  lines.push('CORE LIFTS:');
+  const coreSlots = [];
+  TEMPLATES.forEach(t=> t.exercises.filter(e=>e.block==="CORE").forEach(e=> coreSlots.push(e)));
+  coreSlots.forEach(slot=>{
+    const variant = currentVariant(slot);
+    const isAlt = variant.name !== slot.default.name;
+    const label = variant.name + (isAlt ? ` (swapped from ${slot.default.name})` : '');
+    if(variant.bodyweight){
+      lines.push(`  - ${label}: bodyweight exercise, tracked by reps`);
+      return;
+    }
+    const rec = variant.incr>0 ? getRecommendation(variant.name, variant.incr) : {status:'new'};
+    if(rec.status==='new'){
+      lines.push(`  - ${label}: not logged yet`);
+    } else {
+      const statusWord = {up:'trending UP', same:'holding SAME', down:'dropped DOWN'}[rec.status];
+      lines.push(`  - ${label}: last ${rec.lastWeight} lbs (felt ${rec.lastFelt}) on ${fmtDate(rec.lastDate)} — ${statusWord}, next target ${rec.targetWeight} lbs`);
+    }
+  });
+  lines.push('');
+
+  lines.push('EXTRA / ACCESSORY LIFTS:');
+  const extraSlots = [];
+  TEMPLATES.forEach(t=> t.exercises.filter(e=>e.block==="EXTRA").forEach(e=> extraSlots.push(e)));
+  extraSlots.forEach(slot=>{
+    const variant = currentVariant(slot);
+    const entries = DATA.logs.filter(l=>l.exercise===variant.name);
+    if(entries.length===0){
+      lines.push(`  - ${variant.name}: not logged yet`);
+    } else {
+      const last = entries.slice().sort((a,b)=> a.date<b.date?1:-1)[0];
+      const lastMax = Math.max(...last.sets.map(s=>s.weight||0));
+      const felt = worstFelt(last.sets) || '';
+      lines.push(`  - ${variant.name}: last ${lastMax>0?lastMax+' lbs':'bodyweight'} (${felt}) on ${fmtDate(last.date)}, ${entries.length} session(s) logged total`);
+    }
+  });
+  lines.push('');
+
+  const weekIdx = currentRunningWeekIndex();
+  const totalMiles = DATA.cardioLogs.reduce((sum,c)=>sum+c.miles,0);
+  lines.push(`RUNNING: ${DATA.cardioLogs.length} runs logged, ${totalMiles.toFixed(1)} total miles, ${cardioSkips} cardio rest/skip days marked. Currently on Week ${weekIdx} of the 3-mile progression plan.`);
+  const recentRuns = DATA.cardioLogs.slice().sort((a,b)=> a.date<b.date?1:-1).slice(0,3);
+  recentRuns.forEach(c=> lines.push(`  - ${fmtDate(c.date)}: ${c.miles} mi in ${c.minutes} min`));
+  lines.push('');
+  lines.push('NOTES: (add anything that felt off — pain, boredom with an exercise, schedule conflicts, etc.)');
+
+  return lines.join('\n');
+}
+
+async function handleExport(){
+  const summary = buildExportSummary();
+  const statusEl = document.getElementById('exportStatus');
+  statusEl.style.display = 'block';
+
+  if(navigator.share){
+    try{
+      await navigator.share({ text: summary, title: 'Lift Log Summary' });
+      statusEl.textContent = 'Shared!';
+      return;
+    }catch(e){
+      if(e && e.name === 'AbortError'){ statusEl.textContent = ''; statusEl.style.display='none'; return; }
+    }
+  }
+  try{
+    await navigator.clipboard.writeText(summary);
+    statusEl.textContent = 'Copied to clipboard — paste it into your chat with Claude.';
+  }catch(e){
+    statusEl.textContent = 'Could not auto-copy — select and copy the text below:';
+    const ta = document.createElement('textarea');
+    ta.value = summary;
+    ta.style.cssText = 'width:100%; height:160px; margin-top:8px; background:var(--surface-3); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:8px; font-size:12px;';
+    statusEl.parentElement.appendChild(ta);
+    ta.focus(); ta.select();
+  }
+}
+
+// ============ RUNNING TAB ============
+function renderRunning(main, title, sub){
+  title.textContent = "Running Plan";
+  sub.textContent = "1 mile → 3 miles comfortably";
+  const weekIdx = currentRunningWeekIndex();
+  let html = '';
+  RUNNING_PLAN.forEach(w=>{
+    const isCurrent = w.week===weekIdx;
+    html += `<div class="run-week ${isCurrent?'current':''}">
+      <div class="wk">Week ${w.week}${isCurrent?' — YOU ARE HERE':''}</div>
+      <div class="struct">${w.structure}</div>
+      <div class="goal">${w.goal}</div>
+      <div class="note">${w.note}</div>
+    </div>`;
+  });
+  main.innerHTML = html;
+}
+
+// ============ HISTORY TAB ============
+function renderHistory(main, title, sub){
+  title.textContent = "History";
+  const totalEvents = DATA.logs.length + DATA.skips.length + DATA.cardioLogs.length;
+  sub.textContent = `${DATA.liftingCompletedCount} lifting days · ${DATA.cardioLogs.length} runs · ${DATA.skips.length} rest days`;
+  if(totalEvents===0){
+    main.innerHTML = `<div class="empty">No workouts logged yet.<br>Go to Today and log your first exercise or run.</div>`;
+    return;
+  }
+
+  const logGroups = {};
+  DATA.logs.forEach(l=>{
+    const key = `${l.date}|${l.dayNumber}`;
+    if(!logGroups[key]) logGroups[key] = {date:l.date, dayNumber:l.dayNumber, templateKey:l.templateKey, entries:[]};
+    logGroups[key].entries.push(l);
+  });
+  const timeline = [
+    ...Object.values(logGroups).map(g=>({type:'workout', ...g})),
+    ...DATA.cardioLogs.map(c=>({type:'cardio', date:c.date, miles:c.miles, minutes:c.minutes})),
+    ...DATA.skips.map(s=>({type:'skip', date:s.date, kind:s.kind}))
+  ].sort((a,b)=> a.date<b.date?1:-1);
+
+  let html = '<div class="card">';
+  timeline.forEach(item=>{
+    if(item.type==='skip'){
+      html += `<div class="history-item skip">
+        <div class="history-date">${fmtDate(item.date)}</div>
+        <div>💤 <b>Rest / skip day (${item.kind==='cardio'?'cardio':'lifting'})</b></div>
+      </div>`;
+    } else if(item.type==='cardio'){
+      html += `<div class="history-item">
+        <div class="history-date">${fmtDate(item.date)} · Cardio</div>
+        <div>🏃 <b>${item.miles} mi</b> in ${item.minutes} min</div>
+      </div>`;
+    } else {
+      const template = TEMPLATES.find(t=>t.key===item.templateKey);
+      html += `<div class="history-item">
+        <div class="history-date">${fmtDate(item.date)} · Day ${item.dayNumber}${template ? ' · '+template.title : ''}</div>`;
+      item.entries.forEach(l=>{
+        const setsStr = l.sets.map(s=>`${s.weight}×${s.reps}`).join(', ');
+        const felt = worstFelt(l.sets) || '';
+        const feltColor = {Easy:'var(--good)', OK:'var(--accent)', Hard:'var(--warning)', Failed:'var(--critical)'}[felt] || 'var(--text-muted)';
+        html += `<div style="margin-top:6px;">
+          <span class="history-felt" style="color:${feltColor}">${felt}</span>
+          <div><b>${l.exercise}</b></div>
+          <div class="history-sets">${setsStr} lbs×reps</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+  });
+  html += '</div>';
+  main.innerHTML = html;
+}
+
+// ============ NAV ============
+document.querySelectorAll('.tab-btn').forEach(b=>{
+  b.onclick = ()=>{ currentTab = b.dataset.tab; render(); };
+});
+document.getElementById('modalOverlay').onclick = (e)=>{
+  if(e.target.id==='modalOverlay') closeModal();
+};
+
+render();
+</script>
+</body>
+</html>
